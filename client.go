@@ -118,7 +118,9 @@ func main() {
 			}
 			count++
 			var i = rand.Intn(len(connArr))
+			lock.Lock()
 			var conn = connMap[connArr[i]]
+			lock.Unlock()
 			err := conn.WriteMessage(websocket.TextMessage, []byte(conn.LocalAddr().String()+":"+strconv.Itoa(count)))
 			if err != nil {
 				log.Print("write:", err)
@@ -127,11 +129,13 @@ func main() {
 		case <-interrupt:
 			log.Printf("interrupted with %d connections", len(connArr))
 			var connArrCopied = make([]string, len(connArr))
-			copy(connArrCopied, connArr)
 			var connMapCopied = make(map[string]*websocket.Conn, len(connArr))
+			lock.Lock()
+			copy(connArrCopied, connArr)
 			for k, v := range connMap {
 				connMapCopied[k] = v
 			}
+			lock.Unlock()
 			for i := 0; i < len(connArrCopied); i++ {
 				conn := connMapCopied[connArrCopied[i]]
 				err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, strconv.Itoa(i)))
