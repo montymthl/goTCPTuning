@@ -36,37 +36,13 @@ func SetupClientLog(verbose bool, logFile string) {
 	log.Logger = Logger
 }
 
-func newConnect(u url.URL) *websocket.Conn {
+func newConnect(u url.URL) {
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Print("dial:", err)
-		return nil
+		return
 	}
 
-	go func() {
-		defer func(c *websocket.Conn) {
-			addr := c.LocalAddr().String()
-			lock.Lock()
-			delete(connMap, addr)
-			for i := 0; i < len(connArr); i++ {
-				if connArr[i] == addr {
-					connArr = append(connArr[:i], connArr[i+1:]...)
-				}
-			}
-			lock.Unlock()
-			if len(connArr) == 0 {
-				close(done)
-			}
-		}(c)
-		for {
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				log.Print(c.LocalAddr().String()+", read:", err)
-				return
-			}
-			log.Print("receive: ", string(message))
-		}
-	}()
 	if c != nil {
 		lock.Lock()
 		addr := c.LocalAddr().String()
@@ -74,7 +50,28 @@ func newConnect(u url.URL) *websocket.Conn {
 		connArr = append(connArr, addr)
 		lock.Unlock()
 	}
-	return c
+	defer func(c *websocket.Conn) {
+		addr := c.LocalAddr().String()
+		lock.Lock()
+		delete(connMap, addr)
+		for i := 0; i < len(connArr); i++ {
+			if connArr[i] == addr {
+				connArr = append(connArr[:i], connArr[i+1:]...)
+			}
+		}
+		lock.Unlock()
+		if len(connArr) == 0 {
+			close(done)
+		}
+	}(c)
+	for {
+		_, message, err := c.ReadMessage()
+		if err != nil {
+			log.Print(c.LocalAddr().String()+", read:", err)
+			return
+		}
+		log.Print("receive: ", string(message))
+	}
 }
 
 func main() {
@@ -116,6 +113,9 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
+			if len(connArr) == 0 {
+				continue
+			}
 			count++
 			var i = rand.Intn(len(connArr))
 			var conn = connMap[connArr[i]]
@@ -128,8 +128,12 @@ func main() {
 			log.Printf("interrupted with %d connections", len(connArr))
 			var connArrCopied = make([]string, len(connArr))
 			copy(connArrCopied, connArr)
+			var connMapCopied = make(map[string]*websocket.Conn, len(connArr))
+			for k, v := range connMap {
+				connMapCopied[k] = v
+			}
 			for i := 0; i < len(connArrCopied); i++ {
-				conn := connMap[connArrCopied[i]]
+				conn := connMapCopied[connArrCopied[i]]
 				err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, strconv.Itoa(i)))
 				if err != nil {
 					log.Print("write close:", err)

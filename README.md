@@ -44,3 +44,38 @@ Usage of server:
         Service listen port (default 8080)
   -v    Log/Show verbose messages (default true)
 ```
+
+统计TCP连接信息：`netstat -na | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'`
+
+### 常见问题
+
+1. dial tcp xxx:8080: socket: too many open files
+
+受客户端进程打开文件数限制，默认1024
+
+```shell
+echo "* soft nofile 65535" >> /etc/security/limits.conf
+echo "* hard nofile 65535" >> /etc/security/limits.conf
+```
+
+重新登录，执行`ulimit -n`可以看到，已经是65535了
+
+2. accept tcp xxx:8080: accept4: too many open files
+
+同上，受服务端进程打开文件数限制
+
+客户端会报错：`dial tcp xxx:8080: i/o timeout`
+
+
+### 交叉编译
+
+```
+SET CGO_ENABLED=0
+SET GOOS=linux
+SET GOARCH=amd64
+go build main.go
+```
+
+GOOS取值：darwin、freebsd、linux、windows
+
+GOARCH取值：386、amd64、arm
