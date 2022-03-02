@@ -67,6 +67,13 @@ func newConnect(u url.URL) *websocket.Conn {
 			log.Print("receive: ", string(message))
 		}
 	}()
+	if c != nil {
+		lock.Lock()
+		addr := c.LocalAddr().String()
+		connMap[addr] = c
+		connArr = append(connArr, addr)
+		lock.Unlock()
+	}
 	return c
 }
 
@@ -88,12 +95,7 @@ func main() {
 
 	u := url.URL{Scheme: "ws", Host: serverAddr, Path: "/echo"}
 	for i := 0; i < *instanceCount; i++ {
-		conn := newConnect(u)
-		if conn != nil {
-			addr := conn.LocalAddr().String()
-			connMap[addr] = conn
-			connArr = append(connArr, addr)
-		}
+		go newConnect(u)
 	}
 
 	defer func() {
