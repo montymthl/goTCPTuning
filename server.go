@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -55,15 +56,17 @@ func SetupLog(verbose bool, logFile string) {
 }
 
 func main() {
-	var addr = flag.String("addr", "localhost:8080", "http service address")
-	var logFile = flag.String("log", "server.log", "Log file")
+	var listenHost = flag.String("h", "localhost", "Service listen host")
+	var listenPort = flag.Int("p", 8080, "Service listen port")
+	var logFile = flag.String("o", "server.log", "Output log file")
 	var verbose bool
 	flag.BoolVar(&verbose, "v", true, "Log/Show verbose messages")
 	flag.Parse()
 	SetupLog(verbose, *logFile)
 
+	var listenAddr = fmt.Sprintf("%s:%d", *listenHost, *listenPort)
 	http.HandleFunc("/echo", echo)
-	err := http.ListenAndServe(*addr, nil)
+	err := http.ListenAndServe(listenAddr, nil)
 	if err != nil {
 		log.Print(err)
 		return

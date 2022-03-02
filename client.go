@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -10,14 +11,14 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"time"
 )
 
-var addr = flag.String("addr", "localhost:8080", "http service address")
-var instanceCount = flag.Int("count", 100, "client connection count")
-
-var connMap = make(map[string] *websocket.Conn)
+var connMap = make(map[string]*websocket.Conn)
 var connArr []string
+var lock sync.Mutex
+var done = make(chan struct{})
 
 func SetupClientLog(verbose bool, logFile string) {
 	var Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Level(zerolog.InfoLevel)
@@ -45,17 +46,22 @@ func newConnect(u url.URL) *websocket.Conn {
 	go func() {
 		defer func(c *websocket.Conn) {
 			addr := c.LocalAddr().String()
+			lock.Lock()
 			delete(connMap, addr)
 			for i := 0; i < len(connArr); i++ {
 				if connArr[i] == addr {
 					connArr = append(connArr[:i], connArr[i+1:]...)
 				}
 			}
+			lock.Unlock()
+			if len(connArr) == 0 {
+				close(done)
+			}
 		}(c)
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				log.Print(c.LocalAddr().String() + ", read:", err)
+				log.Print(c.LocalAddr().String()+", read:", err)
 				return
 			}
 			log.Print("receive: ", string(message))
@@ -65,13 +71,22 @@ func newConnect(u url.URL) *websocket.Conn {
 }
 
 func main() {
+	var serverHost = flag.String("h", "localhost", "server host")
+	var serverPort = flag.Int("p", 8080, "server port")
+	var instanceCount = flag.Int("n", 100, "client connection count")
+	var logFile = flag.String("o", "client.log", "Output log file")
+	var verbose bool
+	flag.BoolVar(&verbose, "v", true, "Log/Show verbose messages")
 	flag.Parse()
-	SetupClientLog(true, "client.log")
+	SetupClientLog(verbose, *logFile)
 
+	var serverAddr = fmt.Sprintf("%s:%d", *serverHost, *serverPort)
 	interrupt := make(chan os.Signal, 1)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
+	signal.Notify(quit, os.Kill)
 
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/echo"}
+	u := url.URL{Scheme: "ws", Host: serverAddr, Path: "/echo"}
 	for i := 0; i < *instanceCount; i++ {
 		conn := newConnect(u)
 		if conn != nil {
@@ -102,24 +117,30 @@ func main() {
 			count++
 			var i = rand.Intn(len(connArr))
 			var conn = connMap[connArr[i]]
-			err := conn.WriteMessage(websocket.TextMessage, []byte(conn.LocalAddr().String() + ":" + strconv.Itoa(count)))
+			err := conn.WriteMessage(websocket.TextMessage, []byte(conn.LocalAddr().String()+":"+strconv.Itoa(count)))
 			if err != nil {
 				log.Print("write:", err)
 				return
 			}
 		case <-interrupt:
-			log.Print("interrupt")
-			for i := 0; i < len(connArr); i++ {
-				conn := connMap[connArr[i]]
-				err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			log.Printf("interrupt with %d connections", len(connArr))
+			var connArrCopied = make([]string, len(connArr))
+			copy(connArrCopied, connArr)
+			for i := 0; i < len(connArrCopied); i++ {
+				conn := connMap[connArrCopied[i]]
+				err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, strconv.Itoa(i)))
 				if err != nil {
 					log.Print("write close:", err)
 					return
 				}
 			}
 			select {
-			case <-time.After(time.Second * 3):
+			case <-done:
+				log.Print("done")
 			}
+			return
+		case <-quit:
+			log.Print("killed")
 			return
 		}
 	}
