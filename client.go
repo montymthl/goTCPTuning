@@ -71,9 +71,9 @@ func newConnect(u url.URL) *websocket.Conn {
 }
 
 func main() {
-	var serverHost = flag.String("h", "localhost", "server host")
-	var serverPort = flag.Int("p", 8080, "server port")
-	var instanceCount = flag.Int("n", 100, "client connection count")
+	var serverHost = flag.String("h", "localhost", "Server host")
+	var serverPort = flag.Int("p", 8080, "Server port")
+	var instanceCount = flag.Int("n", 100, "The count of connections")
 	var logFile = flag.String("o", "client.log", "Output log file")
 	var verbose bool
 	flag.BoolVar(&verbose, "v", true, "Log/Show verbose messages")
@@ -123,7 +123,7 @@ func main() {
 				return
 			}
 		case <-interrupt:
-			log.Printf("interrupt with %d connections", len(connArr))
+			log.Printf("interrupted with %d connections", len(connArr))
 			var connArrCopied = make([]string, len(connArr))
 			copy(connArrCopied, connArr)
 			for i := 0; i < len(connArrCopied); i++ {
