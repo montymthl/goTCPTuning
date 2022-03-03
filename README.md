@@ -64,8 +64,26 @@ echo "* hard nofile 65535" >> /etc/security/limits.conf
 
 同上，受服务端进程打开文件数限制
 
-客户端会报错：`dial tcp xxx:8080: i/o timeout`
+3. dial:read tcp xxx:60342->xxx:8080: read: connection reset by peer
 
+服务端错误，查看服务端报错信息为：`kernel: TCP: request_sock_TCP: Possible SYN flooding on port 8080. Sending cookies.`
+
+客户端发包过快，服务端认为是TCP洪水攻击，0表示关闭，1表示并发高时开启，2表示始终开启
+
+查看：`cat /proc/sys/net/ipv4/tcp_syncookies`
+
+修改：`echo "net.ipv4.tcp_syncookies = 0" >> /etc/sysctl.conf`，然后执行：`sysctl -p`
+
+
+4. 客户端连接始终达不到3w
+
+`cat /proc/sys/net/ipv4/ip_local_port_range`，输出为: `32768   60999`，最多可用端口为28232个
+
+修改：`echo "net.ipv4.ip_local_port_range = 1024 65500" >> /etc/sysctl.conf`，然后执行：`sysctl -p`
+
+5. dial tcp xxx:8080: i/o timeout
+
+客户端请求超时
 
 ### 交叉编译
 

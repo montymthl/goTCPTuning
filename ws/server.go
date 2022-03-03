@@ -1,8 +1,10 @@
-package main
+package ws
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"github.com/google/subcommands"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -55,20 +57,36 @@ func SetupLog(verbose bool, logFile string) {
 	log.Logger = Logger
 }
 
-func main() {
-	var listenHost = flag.String("h", "localhost", "Service listen host")
-	var listenPort = flag.Int("p", 8080, "Service listen port")
-	var logFile = flag.String("o", "server.log", "Output log file")
-	var verbose bool
-	flag.BoolVar(&verbose, "v", true, "Log/Show verbose messages")
-	flag.Parse()
-	SetupLog(verbose, *logFile)
-
-	var listenAddr = fmt.Sprintf("%s:%d", *listenHost, *listenPort)
+func (p *WsServerCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	SetupLog(p.verbose, p.logFile)
+	var listenAddr = fmt.Sprintf("%s:%d", p.listenHost, p.listenPort)
 	http.HandleFunc("/echo", echo)
 	err := http.ListenAndServe(listenAddr, nil)
 	if err != nil {
 		log.Print(err)
-		return
+		return subcommands.ExitFailure
 	}
+	return subcommands.ExitSuccess
+}
+
+type WsServerCmd struct {
+	verbose    bool
+	listenHost string
+	listenPort int
+	logFile    string
+}
+
+func (*WsServerCmd) Name() string     { return "wss" }
+func (*WsServerCmd) Synopsis() string { return "Run websocket service." }
+func (*WsServerCmd) Usage() string {
+	return `wss [-h host] [-p port] [-o logFile] [-v]:
+  Run websocket service.
+`
+}
+
+func (p *WsServerCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&p.verbose, "v", false, "Log/Show verbose messages")
+	f.StringVar(&p.listenHost, "h", "localhost", "Service listen host")
+	f.IntVar(&p.listenPort, "p", 8080, "Service listen port")
+	f.StringVar(&p.logFile, "o", "server.log", "Log output file")
 }

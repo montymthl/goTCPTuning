@@ -1,8 +1,10 @@
-package main
+package ws
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"github.com/google/subcommands"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -74,24 +76,17 @@ func newConnect(u url.URL) {
 	}
 }
 
-func main() {
-	var serverHost = flag.String("h", "localhost", "Server host")
-	var serverPort = flag.Int("p", 8080, "Server port")
-	var instanceCount = flag.Int("n", 100, "The count of connections")
-	var logFile = flag.String("o", "client.log", "Output log file")
-	var verbose bool
-	flag.BoolVar(&verbose, "v", true, "Log/Show verbose messages")
-	flag.Parse()
-	SetupClientLog(verbose, *logFile)
+func (p *WsClientCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	SetupClientLog(p.verbose, p.logFile)
+	var serverAddr = fmt.Sprintf("%s:%d", p.serverHost, p.serverPort)
 
-	var serverAddr = fmt.Sprintf("%s:%d", *serverHost, *serverPort)
 	interrupt := make(chan os.Signal, 1)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 	signal.Notify(quit, os.Kill)
 
 	u := url.URL{Scheme: "ws", Host: serverAddr, Path: "/echo"}
-	for i := 0; i < *instanceCount; i++ {
+	for i := 0; i < p.count; i++ {
 		go newConnect(u)
 	}
 
@@ -124,7 +119,7 @@ func main() {
 			err := conn.WriteMessage(websocket.TextMessage, []byte(conn.LocalAddr().String()+":"+strconv.Itoa(count)))
 			if err != nil {
 				log.Print("write:", err)
-				return
+				return subcommands.ExitFailure
 			}
 		case <-interrupt:
 			log.Printf("interrupted with %d connections", len(connArr))
@@ -141,17 +136,41 @@ func main() {
 				err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, strconv.Itoa(i)))
 				if err != nil {
 					log.Print("write close:", err)
-					return
+					return subcommands.ExitFailure
 				}
 			}
 			select {
 			case <-done:
 				log.Print("done")
 			}
-			return
+			return subcommands.ExitSuccess
 		case <-quit:
 			log.Print("killed")
-			return
+			return subcommands.ExitSuccess
 		}
 	}
+}
+
+type WsClientCmd struct {
+	verbose    bool
+	logFile    string
+	serverHost string
+	serverPort int
+	count      int
+}
+
+func (*WsClientCmd) Name() string     { return "wsc" }
+func (*WsClientCmd) Synopsis() string { return "Run websocket client." }
+func (*WsClientCmd) Usage() string {
+	return `wsc [-h host] [-p port] [-o logFile] [-v] -n <count>:
+  Run websocket client.
+`
+}
+
+func (p *WsClientCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&p.verbose, "v", false, "Log/Show verbose messages")
+	f.StringVar(&p.serverHost, "h", "localhost", "Server's host")
+	f.IntVar(&p.serverPort, "p", 8080, "Server's port")
+	f.IntVar(&p.count, "n", 100, "Count of connections")
+	f.StringVar(&p.logFile, "o", "client.log", "Log output file")
 }
