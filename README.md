@@ -7,43 +7,34 @@ A testing ground for TCP Tuning. Persistent connection and short connection etc.
 
 客户端通过websocket连接服务端，一次连接count个，默认100个
 
-客户端日志记录在client.log, 服务端日志记录在server.log
-
 给客户端发送interrupt信号，断开全部连接，kill信号强制退出
 
 ### 编译
 
 ```shell
-go build server.go client.go
+go build tuning.go
 ```
 
 ### 使用
 
 ```shell
-goTCPTuning>client --help
-Usage of client:
-  -h string
-        Server host (default "localhost")
-  -n int
-        The count of connections (default 100)
-  -o string
-        Output log file (default "client.log")
-  -p int
-        Server port (default 8080)
-  -v    Log/Show verbose messages (default true)
+goTCPTuning>tuning help
+Usage: tuning <flags> <subcommand> <subcommand args>
+
+Subcommands:
+        commands         list all command names
+        flags            describe all known top-level flags
+        help             describe subcommands and their syntax
+
+Subcommands for websocket:
+        wsc              Run websocket client.
+        wss              Run websocket service.
+
+
+Use "tuning flags" for a list of top-level flags
 ```
 
-```shell
-goTCPTuning>server --help
-Usage of server:
-  -h string
-        Service listen host (default "localhost")
-  -o string
-        Output log file (default "server.log")
-  -p int
-        Service listen port (default 8080)
-  -v    Log/Show verbose messages (default true)
-```
+`-o`设置日志保存文件，`-v`显示调试信息，默认关闭
 
 统计TCP连接信息：`netstat -na | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'`
 
