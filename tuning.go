@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/google/subcommands"
-	"goTCPTuning/ws"
+	"github.com/montymthl/goTCPTuning/ws"
 	"os"
 )
 
