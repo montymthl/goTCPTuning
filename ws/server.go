@@ -40,7 +40,6 @@ func echo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *ServerCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	setupLog(p.verbose, p.logFile)
 	var listenAddr = fmt.Sprintf("%s:%d", p.listenHost, p.listenPort)
 	http.HandleFunc("/echo", echo)
 	err := http.ListenAndServe(listenAddr, nil)
@@ -61,14 +60,12 @@ type ServerCmd struct {
 func (*ServerCmd) Name() string     { return "wss" }
 func (*ServerCmd) Synopsis() string { return "Run websocket service." }
 func (*ServerCmd) Usage() string {
-	return `wss [-h host] [-p port] [-o logFile] [-v]:
+	return `wss [-h host] [-p port]:
   Run websocket service.
 `
 }
 
 func (p *ServerCmd) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&p.verbose, "v", false, "Log/Show verbose messages")
 	f.StringVar(&p.listenHost, "h", "localhost", "Service listen host")
 	f.IntVar(&p.listenPort, "p", 8080, "Service listen port")
-	f.StringVar(&p.logFile, "o", "server.log", "Log output file")
 }

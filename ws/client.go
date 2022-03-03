@@ -60,7 +60,6 @@ func newConnect(u url.URL) {
 }
 
 func (p *ClientCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	setupLog(p.verbose, p.logFile)
 	var serverAddr = fmt.Sprintf("%s:%d", p.serverHost, p.serverPort)
 
 	interrupt := make(chan os.Signal, 1)
@@ -145,15 +144,13 @@ type ClientCmd struct {
 func (*ClientCmd) Name() string     { return "wsc" }
 func (*ClientCmd) Synopsis() string { return "Run websocket client." }
 func (*ClientCmd) Usage() string {
-	return `wsc [-h host] [-p port] [-o logFile] [-v] -n <count>:
+	return `wsc [-h host] [-p port] -n <count>:
   Run websocket client.
 `
 }
 
 func (p *ClientCmd) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&p.verbose, "v", false, "Log/Show verbose messages")
 	f.StringVar(&p.serverHost, "h", "localhost", "Server's host")
 	f.IntVar(&p.serverPort, "p", 8080, "Server's port")
 	f.IntVar(&p.count, "n", 100, "Count of connections")
-	f.StringVar(&p.logFile, "o", "client.log", "Log output file")
 }
