@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/subcommands"
 	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"math/rand"
 	"net/url"
@@ -21,22 +20,6 @@ var connMap = make(map[string]*websocket.Conn)
 var connArr []string
 var lock sync.Mutex
 var done = make(chan struct{})
-
-func SetupClientLog(verbose bool, logFile string) {
-	var Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Level(zerolog.InfoLevel)
-	if verbose {
-		Logger = Logger.Level(zerolog.DebugLevel).With().Caller().Logger()
-	}
-	if len(logFile) > 0 {
-		fp, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		Logger = Logger.Output(fp)
-	}
-	log.Logger = Logger
-}
 
 func newConnect(u url.URL) {
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -76,8 +59,8 @@ func newConnect(u url.URL) {
 	}
 }
 
-func (p *WsClientCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	SetupClientLog(p.verbose, p.logFile)
+func (p *ClientCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	setupLog(p.verbose, p.logFile)
 	var serverAddr = fmt.Sprintf("%s:%d", p.serverHost, p.serverPort)
 
 	interrupt := make(chan os.Signal, 1)
@@ -151,7 +134,7 @@ func (p *WsClientCmd) Execute(_ context.Context, _ *flag.FlagSet, _ ...interface
 	}
 }
 
-type WsClientCmd struct {
+type ClientCmd struct {
 	verbose    bool
 	logFile    string
 	serverHost string
@@ -159,15 +142,15 @@ type WsClientCmd struct {
 	count      int
 }
 
-func (*WsClientCmd) Name() string     { return "wsc" }
-func (*WsClientCmd) Synopsis() string { return "Run websocket client." }
-func (*WsClientCmd) Usage() string {
+func (*ClientCmd) Name() string     { return "wsc" }
+func (*ClientCmd) Synopsis() string { return "Run websocket client." }
+func (*ClientCmd) Usage() string {
 	return `wsc [-h host] [-p port] [-o logFile] [-v] -n <count>:
   Run websocket client.
 `
 }
 
-func (p *WsClientCmd) SetFlags(f *flag.FlagSet) {
+func (p *ClientCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&p.verbose, "v", false, "Log/Show verbose messages")
 	f.StringVar(&p.serverHost, "h", "localhost", "Server's host")
 	f.IntVar(&p.serverPort, "p", 8080, "Server's port")

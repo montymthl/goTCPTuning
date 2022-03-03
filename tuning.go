@@ -12,8 +12,8 @@ func main() {
 	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(subcommands.FlagsCommand(), "")
 	subcommands.Register(subcommands.CommandsCommand(), "")
-	subcommands.Register(&ws.WsClientCmd{}, "websocket")
-	subcommands.Register(&ws.WsServerCmd{}, "websocket")
+	subcommands.Register(&ws.ClientCmd{}, "websocket")
+	subcommands.Register(&ws.ServerCmd{}, "websocket")
 
 	flag.Parse()
 	ctx := context.Background()
