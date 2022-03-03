@@ -79,10 +79,10 @@ echo "* hard nofile 65535" >> /etc/security/limits.conf
 ### 交叉编译
 
 ```
-SET CGO_ENABLED=0
-SET GOOS=linux
-SET GOARCH=amd64
-go build main.go
+go env -w CGO_ENABLED=0
+go env -w GOOS=linux
+go env -w GOARCH=amd64
+go build tuning.go
 ```
 
 GOOS取值：darwin、freebsd、linux、windows
