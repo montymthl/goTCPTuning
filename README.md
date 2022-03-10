@@ -38,7 +38,7 @@ Use "tuning flags" for a list of top-level flags
 
 统计TCP连接信息：`netstat -na | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'`
 
-### 常见问题
+### 常用优化
 
 1. dial tcp xxx:8080: socket: too many open files
 
@@ -51,13 +51,9 @@ echo "* hard nofile 65535" >> /etc/security/limits.conf
 
 重新登录，执行`ulimit -n`可以看到，已经是65535了
 
-2. accept tcp xxx:8080: accept4: too many open files
+服务端可能报错：accept tcp xxx:8080: accept4: too many open files
 
-同上，受服务端进程打开文件数限制
-
-3. dial:read tcp xxx:60342->xxx:8080: read: connection reset by peer
-
-服务端错误，查看服务端报错信息为：`kernel: TCP: request_sock_TCP: Possible SYN flooding on port 8080. Sending cookies.`
+2. Possible SYN flooding on port 8080. Sending cookies.
 
 客户端发包过快，服务端认为是TCP洪水攻击，0表示关闭，1表示并发高时开启，2表示始终开启
 
@@ -65,16 +61,31 @@ echo "* hard nofile 65535" >> /etc/security/limits.conf
 
 修改：`echo "net.ipv4.tcp_syncookies = 0" >> /etc/sysctl.conf`，然后执行：`sysctl -p`
 
+3. 半连接队列和协议栈队列
 
-4. 客户端连接始终达不到3w
+`echo 16384 > /proc/sys/net/core/netdev_max_backlog`
+
+`echo 16384 > /proc/sys/net/ipv4/tcp_max_syn_backlog`
+
+`echo 16384 > /proc/sys/net/core/somaxconn`
+
+4. 客户端可用端口
 
 `cat /proc/sys/net/ipv4/ip_local_port_range`，输出为: `32768   60999`，最多可用端口为28232个
 
 修改：`echo "net.ipv4.ip_local_port_range = 1024 65500" >> /etc/sysctl.conf`，然后执行：`sysctl -p`
 
-5. dial tcp xxx:8080: i/o timeout
+5. 内存限制
 
-客户端请求超时
+单位: page
+
+`echo "54108   262144   524288" > /proc/sys/net/ipv4/tcp_mem`
+
+单位：字节
+
+`echo "4096    16384   268435456" > /proc/sys/net/ipv4/tcp_wmem`
+
+`echo "4096    87380   268435456" > /proc/sys/net/ipv4/tcp_rmem`
 
 ### 交叉编译
 
